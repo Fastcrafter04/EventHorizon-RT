@@ -68,6 +68,8 @@ EventHorizon-RT/
 │   ├── loaders.py       # Texture/Config loading
 │   └── post_process.py  # Bloom & Tone mapping
 ├── config.yaml          # Resolution, Spin, Mass settings
+├── README.md            # Project Information
+├── galaxy.jpg           # High resolution 6000 * 3000 Pixel image
 └── main.py              # The main loop
 
 ```

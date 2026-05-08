@@ -13,8 +13,8 @@ pixels = ti.Vector.field(3, dtype=ti.f32, shape=res)
 bloom_pixels = ti.Vector.field(3, dtype=ti.f32, shape=res)
 camera = Camera(res[0], res[1])
 
-video_manager = ti.tools.VideoManager(output_dir="./render", framerate=30, automatic_build=False)
-total_frames = 90
+video_manager = ti.tools.VideoManager(output_dir="./render", framerate=60, automatic_build=False)
+total_frames = 180
 
 
 @ti.kernel
@@ -42,17 +42,19 @@ def render(t: ti.f32):
             curr_pos, vel = rk4_step(curr_pos, vel, dt)
             r = curr_pos.norm()
 
-            if ti.abs(curr_pos.y) < 0.15:
+            if ti.abs(curr_pos.y) < 0.08:  # Thinner disk for higher precision
                 r_hit = ti.sqrt(curr_pos.x ** 2 + curr_pos.z ** 2)
                 if c.DISK_INNER <= r_hit <= c.DISK_OUTER:
-                    intensity = 1.0 / (r_hit - c.DISK_INNER + 0.6)
+                    # Use a falloff so the edges aren't sharp lines
+                    edge_fade = ti.exp(-(ti.abs(curr_pos.y) / 0.04) ** 2)
+                    intensity = (1.0 / (r_hit - c.DISK_INNER + 0.6)) * edge_fade
                     gas_vel = ti.Vector([-curr_pos.z, 0.0, curr_pos.x]).normalized()
                     beaming = -vel.dot(gas_vel)
                     doppler = ti.pow(1.0 + beaming * 0.85, 4.0)
                     noise = ti.abs(ti.sin(r_hit * 20.0) * ti.cos(ti.atan2(curr_pos.z, curr_pos.x) * 10.0))
 
                     glow = ti.Vector([1.0, 0.45, 0.15]) * intensity * doppler * (0.4 + 0.6 * noise)
-                    color += glow * 0.2
+                    color += glow * 0.15 # Lower accumulation per step
                     if color.x > 1.5: break
 
             if r < c.HORIZON_FALLBACK:
@@ -66,6 +68,7 @@ def render(t: ti.f32):
                     color += ti.Vector([0.9, 0.9, 1.0]) * star_seed
                 break
 
+        color = color / (1.0 + color)
         pixels[i, j] = color
 
 
